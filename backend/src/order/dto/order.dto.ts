@@ -8,6 +8,8 @@ import {
   IsEmail,
   Matches,
   IsDateString,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -28,9 +30,13 @@ export class TicketDto {
   readonly time: string;
 
   @IsNumber()
+  @Min(1)
+  @Max(5)
   readonly row: number;
 
   @IsNumber()
+  @Min(1)
+  @Max(10)
   readonly seat: number;
 
   @IsNumber()

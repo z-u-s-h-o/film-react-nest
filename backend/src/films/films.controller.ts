@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { FilmsService } from './films.service';
 
 @Controller('films')
@@ -28,11 +28,6 @@ export class FilmsController {
   @Get(':id/schedule')
   async getSchedule(@Param('id') id: string) {
     const schedule = await this.filmsService.getSchedule(id);
-    if (!schedule) {
-      throw new NotFoundException(
-        `Расписание для фильма с ID ${id} не найдено`,
-      );
-    }
 
     return {
       total: schedule.length,
