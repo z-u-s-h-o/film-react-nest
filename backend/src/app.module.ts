@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { AppConfig, configProvider } from './app.config.provider';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { configProvider } from './app.config.provider';
 import { FilmsModule } from './films/films.module';
 import { OrderModule } from './order/order.module';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -12,16 +12,6 @@ import * as path from 'node:path';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      validationSchema: undefined,
-      validate: (env) => {
-        const config: AppConfig = {
-          database: {
-            driver: env.DATABASE_DRIVER,
-            url: env.DATABASE_URL,
-          },
-        };
-        return config;
-      },
     }),
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'public', 'content', 'afisha'),
@@ -30,9 +20,17 @@ import * as path from 'node:path';
         index: false,
       },
     }),
-    MongooseModule.forRoot(
-      process.env.DATABASE_URL || 'mongodb://localhost:27017/afisha',
-    ),
+    MongooseModule.forRootAsync({
+      useFactory: (config: ConfigService) => {
+        const dbUrl =
+          config.get<string>('DATABASE_URL') ||
+          'mongodb://localhost:27017/afisha';
+        return {
+          uri: dbUrl,
+        };
+      },
+      inject: [ConfigService],
+    }),
     FilmsModule,
     OrderModule,
   ],
