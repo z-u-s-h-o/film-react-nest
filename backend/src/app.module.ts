@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { configProvider } from './app.config.provider';
 import { FilmsModule } from './films/films.module';
 import { OrderModule } from './order/order.module';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'node:path';
 
@@ -13,6 +13,7 @@ import * as path from 'node:path';
       isGlobal: true,
       cache: true,
     }),
+
     ServeStaticModule.forRoot({
       rootPath: path.join(__dirname, '..', 'public', 'content', 'afisha'),
       serveRoot: '/content/afisha',
@@ -20,21 +21,27 @@ import * as path from 'node:path';
         index: false,
       },
     }),
-    MongooseModule.forRootAsync({
-      useFactory: (config: ConfigService) => {
-        const dbUrl =
-          config.get<string>('DATABASE_URL') ||
-          'mongodb://localhost:27017/afisha';
+
+    TypeOrmModule.forRootAsync({
+      useFactory: (configService: ConfigService) => {
         return {
-          uri: dbUrl,
+          type: configService.get<string>('DATABASE_TYPE') as 'postgres',
+          host: configService.get<string>('DATABASE_HOST'),
+          port: configService.get<number>('DATABASE_PORT', { infer: true }),
+          username: configService.get<string>('DATABASE_USERNAME'),
+          password: configService.get<string>('DATABASE_PASSWORD'),
+          database: configService.get<string>('DATABASE_NAME'),
+          autoLoadEntities: true,
+          synchronize: false,
         };
       },
       inject: [ConfigService],
     }),
+
     FilmsModule,
     OrderModule,
   ],
-  controllers: [],
   providers: [configProvider],
+  exports: [configProvider],
 })
 export class AppModule {}
