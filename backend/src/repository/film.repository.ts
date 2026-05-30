@@ -1,13 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Injectable, ConflictException } from '@nestjs/common';
+import { Repository, QueryRunner } from 'typeorm';
 import { Film } from '../films/entities/film.entity';
 import { Schedule } from '../films/entities/schedule.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class FilmRepository {
   constructor(
-    @InjectRepository(Film) private filmRepository: Repository<Film>,
+    @InjectRepository(Film)
+    private filmRepository: Repository<Film>,
     @InjectRepository(Schedule)
     private scheduleRepository: Repository<Schedule>,
   ) {}
@@ -20,48 +21,45 @@ export class FilmRepository {
     return await this.filmRepository.findOne({
       where: { id },
       relations: ['schedule'],
-      order: {
-        schedule: {
-          daytime: 'ASC',
-        },
-      },
+      order: { schedule: { daytime: 'ASC' } },
     });
   }
 
-  async updateMultipleScheduleItems(
-    updates: {
-      filmId: string;
-      scheduleItemId: string;
-      takenSeats: string[];
-    }[],
+  async updateTakenSeats(
+    scheduleId: string,
+    seatKeys: string[],
+    queryRunner: QueryRunner,
   ): Promise<void> {
-    const scheduleIds = updates.map((u) => u.scheduleItemId);
-    const schedules = await this.scheduleRepository.find({
-      where: { id: In(scheduleIds) },
-      relations: ['film'],
-    });
+    const manager = queryRunner.manager;
 
-    const updatePromises = updates.map(async (update) => {
-      const schedule = schedules.find((s) => s.id === update.scheduleItemId);
+    const schedule = await manager
+      .createQueryBuilder(Schedule, 'schedule')
+      .setLock('pessimistic_write')
+      .where('schedule.id = :id', { id: scheduleId })
+      .getOne();
 
-      if (!schedule) {
-        throw new Error(`Сеанс с ID ${update.scheduleItemId} не найден`);
-      }
+    if (!schedule) {
+      throw new ConflictException(
+        `Сеанс ${scheduleId} не найден при обновлении`,
+      );
+    }
 
-      if (schedule.film.id !== update.filmId) {
-        throw new Error(
-          `Сеанс ${update.scheduleItemId} не принадлежит фильму ${update.filmId}`,
-        );
-      }
+    const existingTaken = schedule.taken || [];
+    const duplicates = seatKeys.filter((seat) => existingTaken.includes(seat));
+    if (duplicates.length > 0) {
+      throw new ConflictException(`Места уже заняты: ${duplicates.join(', ')}`);
+    }
 
-      const currentTaken = schedule.takenArray;
-      const newTaken = [...new Set([...currentTaken, ...update.takenSeats])];
+    const newTaken = [...existingTaken, ...seatKeys];
+    const result = await manager
+      .createQueryBuilder()
+      .update(Schedule)
+      .set({ taken: newTaken })
+      .where('id = :id', { id: scheduleId })
+      .execute();
 
-      schedule.takenArray = newTaken;
-
-      await this.scheduleRepository.save(schedule);
-    });
-
-    await Promise.all(updatePromises);
+    if (result.affected === 0) {
+      throw new ConflictException(`Не удалось обновить сеанс ${scheduleId}`);
+    }
   }
 }

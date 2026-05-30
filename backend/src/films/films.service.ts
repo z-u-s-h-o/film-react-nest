@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { FilmRepository } from '../repository/film.repository';
 import { Film } from '../films/entities/film.entity';
+import { ScheduleResponseDto } from './dto/schedule-response.dto';
 
 @Injectable()
 export class FilmsService {
@@ -20,7 +21,7 @@ export class FilmsService {
     }
   }
 
-  async getSchedule(filmId: string): Promise<any[]> {
+  async getSchedule(filmId: string): Promise<ScheduleResponseDto[]> {
     const film = await this.filmRepository.findById(filmId);
     if (!film) {
       throw new NotFoundException(`Фильм с ID ${filmId} не найден`);
@@ -46,7 +47,7 @@ export class FilmsService {
       rows: item.rows,
       seats: item.seats,
       price: item.price,
-      taken: item.takenArray,
+      taken: item.taken,
     }));
   }
 }

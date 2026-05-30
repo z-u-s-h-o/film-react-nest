@@ -23,18 +23,14 @@ import * as path from 'node:path';
     }),
 
     TypeOrmModule.forRootAsync({
-      useFactory: (configService: ConfigService) => {
-        return {
-          type: configService.get<string>('DATABASE_TYPE') as 'postgres',
-          host: configService.get<string>('DATABASE_HOST'),
-          port: configService.get<number>('DATABASE_PORT', { infer: true }),
-          username: configService.get<string>('DATABASE_USERNAME'),
-          password: configService.get<string>('DATABASE_PASSWORD'),
-          database: configService.get<string>('DATABASE_NAME'),
-          autoLoadEntities: true,
-          synchronize: false,
-        };
-      },
+      useFactory: (config: ConfigService) => ({
+        type: config.get<string>('DATABASE_DRIVER') as 'postgres',
+        url: config.get<string>('DATABASE_URL'),
+        username: config.get<string>('DATABASE_USERNAME'),
+        password: String(config.get('DATABASE_PASSWORD')),
+        autoLoadEntities: true,
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
+      }),
       inject: [ConfigService],
     }),
 

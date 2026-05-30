@@ -5,12 +5,10 @@ export interface AppConfig {
 }
 
 export interface AppConfigDatabase {
-  driver: string;
-  host: string;
-  port: number;
+  type: string;
+  url: string;
   username: string;
   password: string;
-  name: string;
 }
 
 export const configProvider = {
@@ -18,12 +16,10 @@ export const configProvider = {
   useFactory: (configService: ConfigService) => {
     return {
       database: {
-        driver: configService.get<string>('DATABASE_TYPE'),
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT', { infer: true }),
+        type: configService.get<string>('DATABASE_DRIVER'),
+        url: configService.get<string>('DATABASE_URL'),
         username: configService.get<string>('DATABASE_USERNAME'),
         password: configService.get<string>('DATABASE_PASSWORD'),
-        name: configService.get<string>('DATABASE_NAME'),
       },
     } as AppConfig;
   },
