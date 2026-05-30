@@ -6,12 +6,11 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Film } from './film.entity';
-import { v4 as uuidv4 } from 'uuid';
 
 @Entity('schedules')
 export class Schedule {
   @PrimaryGeneratedColumn('uuid')
-  id: string = uuidv4();
+  id: string;
 
   @Column({ type: 'varchar' })
   daytime: string;
@@ -28,18 +27,10 @@ export class Schedule {
   @Column({ type: 'double precision' })
   price: number;
 
-  @Column({ type: 'text', default: '' })
-  taken: string;
+  @Column('text', { array: true, default: '{}' })
+  taken: string[];
 
   @ManyToOne(() => Film, (film) => film.schedule, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'filmId' })
   film: Film;
-
-  get takenArray(): string[] {
-    return this.taken ? this.taken.split(',').filter(Boolean) : [];
-  }
-
-  set takenArray(value: string[]) {
-    this.taken = value.filter(Boolean).join(',');
-  }
 }

@@ -1,12 +1,12 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
-  InternalServerErrorException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/order.dto';
 import { FilmRepository } from '../repository/film.repository';
 import { v4 as uuidv4 } from 'uuid';
+import { Film } from '../films/entities/film.entity';
 
 @Injectable()
 export class OrderService {
@@ -15,11 +15,34 @@ export class OrderService {
   async create(createOrderDto: CreateOrderDto) {
     const { tickets } = createOrderDto;
     const orderResults = [];
-    const scheduleUpdates = new Map<string, { seats: string[] }>();
+    const scheduleUpdates = new Map<
+      string,
+      { scheduleId: string; seats: string[] }
+    >();
+
+    const queryRunner =
+      this.filmRepository[
+        'scheduleRepository'
+      ].manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
       for (const ticket of tickets) {
-        const film = await this.filmRepository.findById(ticket.film);
+        const row = Number(ticket.row);
+        const seat = Number(ticket.seat);
+        if (isNaN(row) || isNaN(seat)) {
+          throw new BadRequestException(
+            `Некорректные номера места: ряд ${ticket.row}, место ${ticket.seat}`,
+          );
+        }
+        const seatKey = `${row}:${seat}`;
+
+        const film = await queryRunner.manager.findOne(Film, {
+          where: { id: ticket.film },
+          relations: ['schedule'],
+        });
+
         if (!film) {
           throw new NotFoundException(`Фильм ${ticket.film} не найден`);
         }
@@ -33,17 +56,9 @@ export class OrderService {
           );
         }
 
-        const seatKey = `${ticket.row}:${ticket.seat}`;
-
-        if (scheduleItem.taken.includes(seatKey)) {
-          throw new ConflictException(
-            `Кресло ${seatKey} уже занято для сеанса ${ticket.session}`,
-          );
-        }
-
         const key = `${ticket.film}:${ticket.session}`;
         if (!scheduleUpdates.has(key)) {
-          scheduleUpdates.set(key, { seats: [] });
+          scheduleUpdates.set(key, { scheduleId: ticket.session, seats: [] });
         }
         scheduleUpdates.get(key).seats.push(seatKey);
 
@@ -51,40 +66,31 @@ export class OrderService {
           film: ticket.film,
           session: ticket.session,
           daytime: ticket.daytime,
-          row: ticket.row,
-          seat: ticket.seat,
+          row,
+          seat,
           price: ticket.price,
           id: uuidv4(),
         });
       }
 
-      const updates = Array.from(scheduleUpdates.entries()).map(
-        ([key, value]) => {
-          const [filmId, scheduleItemId] = key.split(':');
-          return {
-            filmId,
-            scheduleItemId,
-            takenSeats: value.seats,
-          };
-        },
+      const updatePromises = Array.from(scheduleUpdates.values()).map(
+        ({ scheduleId, seats }) =>
+          this.filmRepository.updateTakenSeats(scheduleId, seats, queryRunner),
       );
 
-      await this.filmRepository.updateMultipleScheduleItems(updates);
+      await Promise.all(updatePromises);
+
+      await queryRunner.commitTransaction();
 
       return {
         total: orderResults.length,
         items: orderResults,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ConflictException
-      ) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Произошла ошибка при оформлении заказа',
-      );
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 }
