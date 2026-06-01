@@ -4,7 +4,8 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { FilmRepository } from '../repository/film.repository';
-import { Film, ScheduleItem } from './schema/film.schema';
+import { Film } from '../films/entities/film.entity';
+import { ScheduleResponseDto } from './dto/schedule-response.dto';
 
 @Injectable()
 export class FilmsService {
@@ -20,22 +21,33 @@ export class FilmsService {
     }
   }
 
-  async getSchedule(filmId: string): Promise<ScheduleItem[]> {
-    try {
-      const film = await this.filmRepository.findById(filmId);
-
-      if (!film) {
-        throw new NotFoundException(`Фильм с ID ${filmId} не найден`);
-      }
-
-      return film.schedule || [];
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new InternalServerErrorException(
-        'Ошибка при получении расписания сеансов',
-      );
+  async getSchedule(filmId: string): Promise<ScheduleResponseDto[]> {
+    const film = await this.filmRepository.findById(filmId);
+    if (!film) {
+      throw new NotFoundException(`Фильм с ID ${filmId} не найден`);
     }
+
+    return film.schedule.map((item) => ({
+      id: item.id,
+      film: filmId,
+      daytime: item.daytime,
+      day: item.daytime
+        ? new Date(item.daytime).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+          })
+        : 'Не указано',
+      time: item.daytime
+        ? new Date(item.daytime).toLocaleTimeString('ru-RU', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : 'Не указано',
+      hall: item.hall,
+      rows: item.rows,
+      seats: item.seats,
+      price: item.price,
+      taken: item.taken,
+    }));
   }
 }
