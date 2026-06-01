@@ -1,14 +1,12 @@
 import {
   Injectable,
   NotFoundException,
-  ConflictException,
   BadRequestException,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/order.dto';
 import { FilmRepository } from '../repository/film.repository';
 import { v4 as uuidv4 } from 'uuid';
-import { Film } from 'src/films/schema/film.schema';
+import { Film } from '../films/entities/film.entity';
 
 @Injectable()
 export class OrderService {
@@ -19,12 +17,32 @@ export class OrderService {
     const orderResults = [];
     const scheduleUpdates = new Map<
       string,
-      { scheduleId: string; seats: string[]; film: Film }
+      { scheduleId: string; seats: string[] }
     >();
+
+    const queryRunner =
+      this.filmRepository[
+        'scheduleRepository'
+      ].manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
       for (const ticket of tickets) {
-        const film = await this.filmRepository.findById(ticket.film);
+        const row = Number(ticket.row);
+        const seat = Number(ticket.seat);
+        if (isNaN(row) || isNaN(seat)) {
+          throw new BadRequestException(
+            `Некорректные номера места: ряд ${ticket.row}, место ${ticket.seat}`,
+          );
+        }
+        const seatKey = `${row}:${seat}`;
+
+        const film = await queryRunner.manager.findOne(Film, {
+          where: { id: ticket.film },
+          relations: ['schedule'],
+        });
+
         if (!film) {
           throw new NotFoundException(`Фильм ${ticket.film} не найден`);
         }
@@ -38,72 +56,41 @@ export class OrderService {
           );
         }
 
-        const seatKey = `${ticket.row}:${ticket.seat}`;
-
-        if (scheduleItem.taken.includes(seatKey)) {
-          throw new ConflictException(
-            `Кресло ${seatKey} уже занято для сеанса ${ticket.session}`,
-          );
-        }
-
         const key = `${ticket.film}:${ticket.session}`;
         if (!scheduleUpdates.has(key)) {
-          scheduleUpdates.set(key, {
-            scheduleId: ticket.session,
-            seats: [],
-            film: film,
-          });
+          scheduleUpdates.set(key, { scheduleId: ticket.session, seats: [] });
         }
         scheduleUpdates.get(key).seats.push(seatKey);
 
-        const orderId = uuidv4();
         orderResults.push({
           film: ticket.film,
           session: ticket.session,
           daytime: ticket.daytime,
-          row: ticket.row,
-          seat: ticket.seat,
+          row,
+          seat,
           price: ticket.price,
-          id: orderId,
+          id: uuidv4(),
         });
       }
 
-      const filmScheduleUpdates = [];
-      for (const [key, updateData] of scheduleUpdates) {
-        const [filmId] = key.split(':');
-        const existingTakenSeats =
-          updateData.film.schedule.find(
-            (item) => item.id === updateData.scheduleId,
-          )?.taken || [];
-
-        filmScheduleUpdates.push({
-          filmId,
-          scheduleItemId: updateData.scheduleId,
-          takenSeats: [...existingTakenSeats, ...updateData.seats],
-        });
-      }
-
-      await this.filmRepository.updateMultipleScheduleItems(
-        filmScheduleUpdates,
+      const updatePromises = Array.from(scheduleUpdates.values()).map(
+        ({ scheduleId, seats }) =>
+          this.filmRepository.updateTakenSeats(scheduleId, seats, queryRunner),
       );
+
+      await Promise.all(updatePromises);
+
+      await queryRunner.commitTransaction();
 
       return {
         total: orderResults.length,
         items: orderResults,
       };
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof ConflictException
-      ) {
-        throw error;
-      } else if (error instanceof BadRequestException) {
-        throw error;
-      } else {
-        throw new InternalServerErrorException(
-          'Произошла ошибка при оформлении заказа',
-        );
-      }
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 }

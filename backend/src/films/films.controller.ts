@@ -31,28 +31,7 @@ export class FilmsController {
 
     return {
       total: schedule.length,
-      items: schedule.map((item) => ({
-        id: item.id,
-        film: id,
-        daytime: item.daytime.toISOString(),
-        day: item.daytime
-          ? new Date(item.daytime).toLocaleDateString('ru-RU', {
-              day: 'numeric',
-              month: 'long',
-            })
-          : 'Не указано',
-        time: item.daytime
-          ? new Date(item.daytime).toLocaleTimeString('ru-RU', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : 'Не указано',
-        hall: item.hall,
-        rows: item.rows,
-        seats: item.seats,
-        price: item.price,
-        taken: item.taken || [],
-      })),
+      items: schedule,
     };
   }
 }
