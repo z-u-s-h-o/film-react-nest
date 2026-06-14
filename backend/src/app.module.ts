@@ -6,9 +6,11 @@ import { OrderModule } from './order/order.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'node:path';
+import { LoggerModule } from './logger/logger.module';
 
 @Module({
   imports: [
+    LoggerModule,
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
