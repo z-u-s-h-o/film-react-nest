@@ -1,16 +1,15 @@
-name: Build and Push Docker Images to GHCR
+name: Build and Push Docker Images
 
 on:
   push:
     branches:
-      - review-2
       - main
+      - 'review-**'
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -30,36 +29,40 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Frontend image
-        uses: docker/build-push-action@v5
+      - name: Extract Docker metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
+          images: ghcr.io/${{ github.repository }}/frontend
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/frontend:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/frontend:latest
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VITE_API_URL=/api/afisha
-            VITE_CDN_URL=/content/afisha
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
 
-      - name: Build and push Backend image
+      - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
+          context: .
+          file: ./Dockerfile.frontend
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/backend:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/backend:latest
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
 
-      - name: Build and push Nginx image
+      - name: Extract Docker metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+
+      - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./nginx
-          file: ./nginx/Dockerfile
+          context: .
+          file: ./Dockerfile.backend
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/nginx:${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}/nginx:latest
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
