@@ -8,7 +8,6 @@ COPY package.json ./
 COPY package-lock.json* ./
 
 RUN npm install
-# RUN npm install typescript --save-dev
 
 COPY . .
 
