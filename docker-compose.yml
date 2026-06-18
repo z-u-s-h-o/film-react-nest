@@ -6,8 +6,12 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/z-u-s-h-o/film-react-nest/frontend:${IMAGE_TAG:-latest}
     container_name: film-frontend
+    hostname: film.zusho.nomorepartiessite.ru
     networks:
       - film-app-network
+    environment:
+      VITE_API_URL: http://api.film.zusho.nomorepartiessite.ru/api/afisha
+      VITE_CDN_URL: http://api.film.zusho.nomorepartiessite.ru/content/afisha
     volumes:
       - frontend_dist:/usr/share/nginx/html
 
@@ -17,6 +21,7 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/z-u-s-h-o/film-react-nest/backend:${IMAGE_TAG:-latest}
     container_name: film-backend
+    hostname: api.film.zusho.nomorepartiessite.ru
     networks:
       - film-app-network
       - film-db-network
