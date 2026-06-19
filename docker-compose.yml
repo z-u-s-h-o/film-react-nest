@@ -56,8 +56,8 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: film-pgadmin
-    ports:
-      - "8080:80"
+    # ports:
+    #   - "8080:80"
     networks:
       - film-app-network
       - film-db-network
