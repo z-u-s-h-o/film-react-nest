@@ -2,14 +2,9 @@ name: Build, Push and Deploy Docker Images
 
 on:
   push:
-    branches: [main, review-2]
+    branches: [main]
   pull_request:
     branches: [main]
-  # исправлено
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
 
 env:
   REGISTRY: ghcr.io
