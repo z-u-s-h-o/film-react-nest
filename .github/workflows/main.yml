@@ -25,7 +25,8 @@ jobs:
       - name: Generate image tag from commit SHA
         id: generate-tag
         run: |
-          echo "TAG=sha-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+          echo "TAG=sha-$SHORT_SHA" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -99,7 +100,7 @@ jobs:
               exit 1
             fi
 
-            export IMAGE_TAG=sha-${{ github.sha::8 }}
+            export IMAGE_TAG=sha-$(echo "${{ github.sha }}" | cut -c1-8)
             docker compose pull
             docker compose down
             docker compose up -d
