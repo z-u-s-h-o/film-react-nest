@@ -43,7 +43,12 @@ async function bootstrap() {
     exclude: ['content/afisha'],
   });
 
-  app.enableCors();
   await app.listen(3000, '0.0.0.0'); 
+
+  app.enableCors({
+    origin: 'http://film.zusho.nomorepartiessite.ru',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
 }
 bootstrap();

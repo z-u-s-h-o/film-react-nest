@@ -21,7 +21,6 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/z-u-s-h-o/film-react-nest/backend:${IMAGE_TAG:-latest}
     container_name: film-backend
-    # hostname: api.film.zusho.nomorepartiessite.ru
     networks:
       - film-app-network
       - film-db-network

@@ -93,7 +93,7 @@ jobs:
               echo "ERROR: docker-compose.yml not found in ${{ env.PROJECT_PATH }}"
               exit 1
             fi
-            # Экспорт тега перед запуском compose
+
             export IMAGE_TAG=${{ env.IMAGE_TAG }}
             docker compose pull
             docker compose down
