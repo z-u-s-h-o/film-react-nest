@@ -1,4 +1,4 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Repository, QueryRunner } from 'typeorm';
 import { Film } from '../films/entities/film.entity';
 import { Schedule } from '../films/entities/schedule.entity';
@@ -39,15 +39,13 @@ export class FilmRepository {
       .getOne();
 
     if (!schedule) {
-      throw new ConflictException(
-        `Сеанс ${scheduleId} не найден при обновлении`,
-      );
+      throw new Error(`Сеанс ${scheduleId} не найден при обновлении`);
     }
 
     const existingTaken = schedule.taken || [];
     const duplicates = seatKeys.filter((seat) => existingTaken.includes(seat));
     if (duplicates.length > 0) {
-      throw new ConflictException(`Места уже заняты: ${duplicates.join(', ')}`);
+      throw new Error(`Места уже заняты: ${duplicates.join(', ')}`);
     }
 
     const newTaken = [...existingTaken, ...seatKeys];
@@ -59,7 +57,7 @@ export class FilmRepository {
       .execute();
 
     if (result.affected === 0) {
-      throw new ConflictException(`Не удалось обновить сеанс ${scheduleId}`);
+      throw new Error(`Не удалось обновить сеанс ${scheduleId}`);
     }
   }
 }

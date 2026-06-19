@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateOrderDto } from './dto/order.dto';
 import { FilmRepository } from '../repository/film.repository';
@@ -78,7 +79,9 @@ export class OrderService {
           this.filmRepository.updateTakenSeats(scheduleId, seats, queryRunner),
       );
 
-      await Promise.all(updatePromises);
+      await Promise.all(updatePromises).catch((error) => {
+        throw new ConflictException(error.message);
+      });
 
       await queryRunner.commitTransaction();
 
